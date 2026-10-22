@@ -138,11 +138,37 @@ function historyView(view) {
   </div>`;
 }
 
+function profileView(view) {
+  const { profile, customFoods, profileError, customFoodError, notice } = view;
+  return `<div class="app-shell">
+    <section class="section-heading"><p class="eyebrow">Seu plano, suas escolhas</p><h1>Perfil e metas</h1><p>Ajuste as referências conforme sua evolução e orientação profissional.</p></section>
+    <div class="profile-grid">
+      <article class="panel">
+        <div class="panel-header"><h2>Metas pessoais</h2><p>Valores iniciais para o ganho de aproximadamente 2 kg por mês.</p></div>
+        <form id="profile-form" class="panel-body profile-form" novalidate>
+          <div class="form-row"><div class="field"><label for="current-weight">Peso atual (kg)</label><input id="current-weight" name="currentWeight" type="text" inputmode="decimal" value="${profile.currentWeight}" /></div><div class="field"><label for="target-weight">Meta de peso (kg)</label><input id="target-weight" name="targetWeight" type="text" inputmode="decimal" value="${profile.targetWeight}" /></div></div>
+          <div class="field"><label for="calorie-goal">Meta de calorias</label><input id="calorie-goal" name="calorieGoal" type="number" min="500" max="10000" value="${profile.calorieGoal}" /></div>
+          <div class="macro-fields"><div class="field"><label for="protein-goal">Proteínas (g)</label><input id="protein-goal" name="proteinGoal" type="number" min="0" max="1000" value="${profile.proteinGoal}" /></div><div class="field"><label for="carbs-goal">Carboidratos (g)</label><input id="carbs-goal" name="carbsGoal" type="number" min="0" max="1000" value="${profile.carbsGoal}" /></div><div class="field"><label for="fat-goal">Gorduras (g)</label><input id="fat-goal" name="fatGoal" type="number" min="0" max="1000" value="${profile.fatGoal}" /></div></div>
+          <p class="error">${escapeHtml(profileError)}</p><button class="btn btn-primary" type="submit">Salvar metas</button>
+        </form>
+      </article>
+      <article class="panel">
+        <div class="panel-header split-header"><div><h2>Meus alimentos</h2><p>Cadastre os valores do rótulo da sua marca.</p></div><button class="btn btn-secondary" type="button" id="open-custom-food">+ Novo</button></div>
+        ${customFoods.length ? `<ul class="custom-foods">${customFoods.map((food) => `<li><div><strong>${escapeHtml(food.name)}</strong><small>${food.baseAmount} ${food.unit} · ${number(food.calories)} kcal</small></div><button class="btn btn-danger" type="button" data-remove-custom="${food.id}">Remover</button></li>`).join("")}</ul>` : `<div class="empty-state">Você ainda não cadastrou alimentos próprios.</div>`}
+      </article>
+      <aside class="panel privacy-card"><p class="eyebrow">Privacidade local</p><h2>Seus dados ficam neste navegador</h2><p>Não há conta nem sincronização. Limpar os dados do navegador também pode apagar seu histórico.</p><p>As metas e informações nutricionais são estimativas e não substituem médico ou nutricionista.</p><button class="btn btn-danger" type="button" id="open-clear-data">Apagar todo o histórico</button></aside>
+    </div>
+    <p class="sr-only" aria-live="polite">${escapeHtml(notice)}</p>
+    <dialog id="custom-food-dialog"><form id="custom-food-form" method="dialog" class="dialog-card"><div class="dialog-heading"><div><p class="eyebrow">Novo alimento</p><h2>Valores do rótulo</h2></div><button class="icon-button" type="button" data-close-dialog aria-label="Fechar">×</button></div><div class="field"><label for="custom-name">Nome</label><input id="custom-name" name="name" required /></div><div class="form-row"><div class="field"><label for="custom-amount">Porção</label><input id="custom-amount" name="baseAmount" inputmode="decimal" value="100" /></div><div class="field"><label for="custom-unit">Unidade</label><select id="custom-unit" name="unit"><option value="g">gramas</option><option value="ml">mililitros</option><option value="un">unidade</option></select></div></div><div class="macro-fields"><div class="field"><label for="custom-calories">Calorias</label><input id="custom-calories" name="calories" inputmode="decimal" /></div><div class="field"><label for="custom-protein">Proteínas</label><input id="custom-protein" name="protein" inputmode="decimal" /></div><div class="field"><label for="custom-carbs">Carboidratos</label><input id="custom-carbs" name="carbs" inputmode="decimal" /></div><div class="field"><label for="custom-fat">Gorduras</label><input id="custom-fat" name="fat" inputmode="decimal" /></div></div><p class="error">${escapeHtml(customFoodError)}</p><button class="btn btn-primary" type="submit">Cadastrar alimento</button></form></dialog>
+    <dialog id="clear-data-dialog"><div class="dialog-card"><p class="eyebrow">Ação permanente</p><h2>Apagar todo o histórico?</h2><p>Todos os alimentos personalizados, registros, pesos e metas salvos neste navegador serão removidos.</p><div class="dialog-actions"><button class="btn btn-secondary" type="button" data-close-dialog>Cancelar</button><button class="btn btn-danger" type="button" id="confirm-clear-data">Sim, apagar tudo</button></div></div></dialog>
+  </div>`;
+}
+
 export function renderApp(view, root) {
   const content = view.activeView === "today"
     ? todayView(view)
     : view.activeView === "history"
       ? historyView(view)
-      : `<div class="app-shell"><article class="panel coming-soon"><p class="eyebrow">Em construção</p><h1>Perfil</h1><p>Esta área entra na próxima etapa.</p></article></div>`;
+      : profileView(view);
   root.innerHTML = content + nav(view.activeView);
 }

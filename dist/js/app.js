@@ -5,7 +5,7 @@ import { renderApp } from "./ui/render.js";
 const root = document.querySelector("#app");
 const toastRegion = document.querySelector("#toast-region");
 const appState = createAppState(createRepository(window.localStorage));
-const ui = { activeView: "today", search: "", formError: "", weightError: "", undo: null, undoTimer: null };
+const ui = { activeView: "today", search: "", formError: "", weightError: "", profileError: "", customFoodError: "", notice: "", undo: null, undoTimer: null };
 
 function normalize(value) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -44,6 +44,23 @@ root.addEventListener("input", (event) => {
 });
 
 root.addEventListener("submit", (event) => {
+  if (event.target.matches("#profile-form")) {
+    event.preventDefault();
+    const result = appState.updateProfile(Object.fromEntries(new FormData(event.target)));
+    ui.profileError = result.ok ? "" : result.error;
+    ui.notice = result.ok ? "Metas atualizadas." : "";
+    render();
+    return;
+  }
+  if (event.target.matches("#custom-food-form")) {
+    event.preventDefault();
+    const result = appState.addCustomFood(Object.fromEntries(new FormData(event.target)));
+    ui.customFoodError = result.ok ? "" : result.error;
+    ui.notice = result.ok ? "Alimento cadastrado." : "";
+    render();
+    if (!result.ok) document.querySelector("#custom-food-dialog")?.showModal();
+    return;
+  }
   if (event.target.matches("#weight-form")) {
     event.preventDefault();
     const data = new FormData(event.target);
@@ -72,6 +89,24 @@ root.addEventListener("change", (event) => {
 root.addEventListener("click", (event) => {
   const nav = event.target.closest("[data-nav]");
   if (nav) { ui.activeView = nav.dataset.nav; render(); return; }
+
+  if (event.target.closest("#open-custom-food")) { document.querySelector("#custom-food-dialog")?.showModal(); return; }
+  if (event.target.closest("#open-clear-data")) { document.querySelector("#clear-data-dialog")?.showModal(); return; }
+  if (event.target.closest("[data-close-dialog]")) { event.target.closest("dialog")?.close(); return; }
+  if (event.target.closest("#confirm-clear-data")) {
+    appState.clearAllData(true);
+    ui.notice = "Histórico apagado.";
+    render();
+    return;
+  }
+
+  const removeCustom = event.target.closest("[data-remove-custom]");
+  if (removeCustom) {
+    const result = appState.removeCustomFood(removeCustom.dataset.removeCustom);
+    ui.notice = result.ok ? "Alimento personalizado removido." : result.error;
+    render();
+    return;
+  }
 
   const edit = event.target.closest("[data-edit-entry]");
   if (edit) {
