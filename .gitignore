@@ -1,3 +1,7 @@
 .superpowers/
 *.zip
+node_modules/
+.next/
+.vercel/
+*.tsbuildinfo
 

@@ -14,14 +14,22 @@ Aplicativo web pessoal para registrar alimentos, somar calorias e macronutriente
 
 ## Executar localmente
 
-Requer Node.js para os testes e qualquer servidor HTTP estático para abrir a interface.
+O projeto usa Next.js com App Router, TypeScript e GSAP. Nesta primeira versão, os dados continuam salvos somente no navegador.
+
+```powershell
+npm install
+npm run dev
+```
+
+Abra `http://localhost:3000/`. Para validar uma versão de produção:
 
 ```powershell
 npm test
-python -m http.server 4173 --directory dist
+npm run build
+npm start
 ```
 
-Depois, abra `http://127.0.0.1:4173/`.
+Na Vercel, mantenha a raiz do projeto em `.`. O framework e a pasta de saída são detectados automaticamente pelo Next.js.
 
 ## Privacidade e limites
 
