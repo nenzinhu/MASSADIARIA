@@ -85,9 +85,64 @@ function todayView(view) {
   </div>`;
 }
 
+function rateMessage(rate) {
+  if (rate.status === "insufficient") return "Registre o peso em pelo menos duas semanas para comparar seu ritmo.";
+  const value = number(rate.rate, 2);
+  if (rate.status === "below") return `Média de ${value} kg/semana. O ritmo está abaixo da referência; observe mais uma semana e considere revisar as calorias.`;
+  if (rate.status === "above") return `Média de ${value} kg/semana. O ritmo está acima da referência; considere revisar as calorias para limitar o ganho de gordura.`;
+  return `Média de ${value} kg/semana. Seu ritmo está dentro da faixa planejada.`;
+}
+
+function weightChart(weeks) {
+  if (!weeks.length) return `<div class="chart-empty">Registre seu primeiro peso para iniciar o gráfico.</div>`;
+  const values = weeks.map((week) => week.average);
+  const min = Math.min(...values) - 0.5;
+  const max = Math.max(...values) + 0.5;
+  const range = Math.max(1, max - min);
+  const points = weeks.map((week, index) => {
+    const x = weeks.length === 1 ? 50 : 8 + (index / (weeks.length - 1)) * 84;
+    const y = 84 - ((week.average - min) / range) * 68;
+    return `${x},${y}`;
+  }).join(" ");
+  return `<svg class="weight-chart" viewBox="0 0 100 100" role="img" aria-label="Evolução da média semanal de peso"><line x1="8" y1="84" x2="92" y2="84"></line><polyline points="${points}"></polyline>${points.split(" ").map((point) => { const [x, y] = point.split(","); return `<circle cx="${x}" cy="${y}" r="2.4"></circle>`; }).join("")}</svg>`;
+}
+
+function historyEntries(entries) {
+  if (!entries.length) return `<div class="empty-state">Nenhum alimento registrado nesta data.</div>`;
+  return `<ul class="history-foods">${entries.map((entry) => `<li><span>${escapeHtml(entry.food.name)} <small>${number(entry.quantity, 1)} ${entry.food.unit}</small></span><strong>${number(entry.nutrition.calories)} kcal</strong></li>`).join("")}</ul>`;
+}
+
+function historyView(view) {
+  const { history, weightError } = view;
+  const tableRows = history.weeklyAverages.map((week) => `<tr><td>${new Intl.DateTimeFormat("pt-BR", { timeZone: "UTC" }).format(new Date(`${week.weekStart}T12:00:00Z`))}</td><td>${number(week.average, 2)} kg</td><td>${week.count}</td></tr>`).join("");
+  return `<div class="app-shell">
+    <section class="section-heading"><p class="eyebrow">Consistência acima de perfeição</p><h1>Histórico</h1><p>Acompanhe a alimentação e a tendência do seu peso ao longo das semanas.</p></section>
+    <section class="history-grid">
+      <article class="panel history-day">
+        <div class="panel-header"><h2>Resumo do dia</h2><p>Selecione uma data para consultar.</p></div>
+        <div class="panel-body">
+          <div class="field"><label for="history-date">Data</label><input id="history-date" type="date" value="${history.selectedDate}" /></div>
+          <div class="daily-total"><strong>${number(history.daily.nutrition.calories)} kcal</strong><span>P ${number(history.daily.nutrition.protein, 1)} g · C ${number(history.daily.nutrition.carbs, 1)} g · G ${number(history.daily.nutrition.fat, 1)} g</span></div>
+        </div>
+        ${historyEntries(history.daily.entries)}
+      </article>
+      <article class="panel">
+        <div class="panel-header"><h2>Registrar peso</h2><p>A pesagem mais recente atualiza seu progresso.</p></div>
+        <form class="panel-body compact-form" id="weight-form" novalidate><div class="field"><label for="weight-date">Data</label><input id="weight-date" name="date" type="date" value="${history.selectedDate}" /></div><div class="field"><label for="weight-value">Peso em kg</label><input id="weight-value" name="value" type="text" inputmode="decimal" placeholder="66,8" /></div><button class="btn btn-primary" type="submit">Salvar peso</button><p class="error">${escapeHtml(weightError)}</p></form>
+      </article>
+      <article class="panel chart-panel">
+        <div class="panel-header"><h2>Média semanal</h2><p>${escapeHtml(rateMessage(history.rate))}</p></div>
+        <div class="panel-body">${weightChart(history.weeklyAverages)}<details><summary>Ver dados do gráfico</summary><div class="table-wrap"><table><thead><tr><th>Semana</th><th>Média</th><th>Pesagens</th></tr></thead><tbody>${tableRows || `<tr><td colspan="3">Sem dados</td></tr>`}</tbody></table></div></details></div>
+      </article>
+    </section>
+  </div>`;
+}
+
 export function renderApp(view, root) {
   const content = view.activeView === "today"
     ? todayView(view)
-    : `<div class="app-shell"><article class="panel coming-soon"><p class="eyebrow">Em construção</p><h1>${view.activeView === "history" ? "Histórico" : "Perfil"}</h1><p>Esta área entra na próxima etapa.</p></article></div>`;
+    : view.activeView === "history"
+      ? historyView(view)
+      : `<div class="app-shell"><article class="panel coming-soon"><p class="eyebrow">Em construção</p><h1>Perfil</h1><p>Esta área entra na próxima etapa.</p></article></div>`;
   root.innerHTML = content + nav(view.activeView);
 }

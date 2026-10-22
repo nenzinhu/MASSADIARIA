@@ -1,5 +1,6 @@
 import { INITIAL_FOODS } from "../data/foods.js";
 import { scaleNutrition, sumNutrition, validateQuantity } from "../domain/nutrition.js";
+import { classifyWeeklyRate, groupWeeklyAverages } from "../domain/progress.js";
 
 export const DEFAULT_PROFILE = Object.freeze({
   sex: "masculino",
@@ -26,7 +27,14 @@ export function createDefaultState() {
   };
 }
 
-export function createAppState(repository, todayProvider = () => new Date().toISOString().slice(0, 10)) {
+export function localDateKey(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+export function createAppState(repository, todayProvider = () => localDateKey()) {
   let state = repository.loadState();
   let selectedDate = todayProvider();
 
@@ -102,6 +110,28 @@ export function createAppState(repository, todayProvider = () => new Date().toIS
         date,
         entries,
         nutrition: sumNutrition(entries.map((entry) => entry.nutrition)),
+      };
+    },
+    recordWeight(date, rawValue) {
+      const value = typeof rawValue === "string" ? Number(rawValue.replace(",", ".")) : Number(rawValue);
+      if (!Number.isFinite(value) || value < 30 || value > 300) {
+        return { ok: false, error: "Informe um peso entre 30 e 300 kg." };
+      }
+      state.weights = [...state.weights.filter((item) => item.date !== date), { date, value }]
+        .sort((left, right) => left.date.localeCompare(right.date));
+      state.profile.currentWeight = state.weights.at(-1).value;
+      persist();
+      return { ok: true, weight: { date, value } };
+    },
+    getHistorySnapshot(date) {
+      const weights = structuredClone(state.weights);
+      const weeklyAverages = groupWeeklyAverages(weights);
+      return {
+        selectedDate: date,
+        daily: this.getDailySummary(date),
+        weights,
+        weeklyAverages,
+        rate: classifyWeeklyRate(weeklyAverages, state.profile.weeklyGainGoal),
       };
     },
   };

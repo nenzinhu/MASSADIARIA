@@ -5,7 +5,7 @@ import { renderApp } from "./ui/render.js";
 const root = document.querySelector("#app");
 const toastRegion = document.querySelector("#toast-region");
 const appState = createAppState(createRepository(window.localStorage));
-const ui = { activeView: "today", search: "", formError: "", undo: null, undoTimer: null };
+const ui = { activeView: "today", search: "", formError: "", weightError: "", undo: null, undoTimer: null };
 
 function normalize(value) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -14,8 +14,9 @@ function normalize(value) {
 function viewModel() {
   const snapshot = appState.getSnapshot();
   const daily = appState.getDailySummary(snapshot.selectedDate);
+  const history = appState.getHistorySnapshot(snapshot.selectedDate);
   const filteredFoods = snapshot.foods.filter((food) => normalize(food.name).includes(normalize(ui.search)));
-  return { ...snapshot, daily, filteredFoods, ...ui };
+  return { ...snapshot, daily, history, filteredFoods, ...ui };
 }
 
 function render() {
@@ -43,6 +44,14 @@ root.addEventListener("input", (event) => {
 });
 
 root.addEventListener("submit", (event) => {
+  if (event.target.matches("#weight-form")) {
+    event.preventDefault();
+    const data = new FormData(event.target);
+    const result = appState.recordWeight(data.get("date"), data.get("value"));
+    ui.weightError = result.ok ? "" : result.error;
+    render();
+    return;
+  }
   if (!event.target.matches("#add-food-form")) return;
   event.preventDefault();
   const data = new FormData(event.target);
@@ -51,6 +60,13 @@ root.addEventListener("submit", (event) => {
   ui.formError = result.ok ? "" : result.error;
   if (result.ok) ui.search = "";
   render();
+});
+
+root.addEventListener("change", (event) => {
+  if (event.target.matches("#history-date")) {
+    appState.selectDate(event.target.value);
+    render();
+  }
 });
 
 root.addEventListener("click", (event) => {
