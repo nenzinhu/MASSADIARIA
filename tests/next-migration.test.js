@@ -19,6 +19,13 @@ test("animações: cartões permanecem legíveis durante o stagger", () => {
   assert.doesNotMatch(app, /gsap\.fromTo\("\.reveal-card", \{ autoAlpha: 0/);
 });
 
+test("animações: elementos opcionais só são animados quando existem", () => {
+  const app = readFileSync(new URL("../components/MassaDiariaApp.tsx", import.meta.url), "utf8");
+  assert.match(app, /if \(meterFills\.length\)/);
+  assert.match(app, /if \(chartLines\.length\)/);
+  assert.match(app, /if \(chartPoints\.length\)/);
+});
+
 test("navegação: troca de aba volta ao topo e o cabeçalho usa a meta atual", () => {
   const app = readFileSync(new URL("../components/MassaDiariaApp.tsx", import.meta.url), "utf8");
   assert.match(app, /window\.scrollTo/);

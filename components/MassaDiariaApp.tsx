@@ -85,11 +85,14 @@ export function MassaDiariaApp() {
     mm.add("(prefers-reduced-motion: reduce)", () => gsap.set(viewRef.current, { clearProps: "all" }));
     mm.add("(prefers-reduced-motion: no-preference)", () => {
       const context = gsap.context(() => {
+        const meterFills = gsap.utils.toArray(".meter-fill");
+        const chartLines = gsap.utils.toArray(".chart-line");
+        const chartPoints = gsap.utils.toArray(".chart-point");
         gsap.fromTo(".view-stage", { autoAlpha: 0, y: 18 }, { autoAlpha: 1, y: 0, duration: 0.45, ease: "power3.out" });
         gsap.fromTo(".reveal-card", { y: 14 }, { y: 0, duration: 0.38, stagger: 0.055, ease: "power2.out", delay: 0.08 });
-        gsap.fromTo(".meter-fill", { scaleX: 0, transformOrigin: "left center" }, { scaleX: 1, duration: 0.75, ease: "power2.out", delay: 0.15 });
-        gsap.fromTo(".chart-line", { strokeDasharray: 240, strokeDashoffset: 240 }, { strokeDashoffset: 0, duration: 1, ease: "power2.out" });
-        gsap.fromTo(".chart-point", { scale: 0, transformOrigin: "center" }, { scale: 1, duration: 0.25, stagger: 0.09, delay: 0.55 });
+        if (meterFills.length) gsap.fromTo(meterFills, { scaleX: 0, transformOrigin: "left center" }, { scaleX: 1, duration: 0.75, ease: "power2.out", delay: 0.15 });
+        if (chartLines.length) gsap.fromTo(chartLines, { strokeDasharray: 240, strokeDashoffset: 240 }, { strokeDashoffset: 0, duration: 1, ease: "power2.out" });
+        if (chartPoints.length) gsap.fromTo(chartPoints, { scale: 0, transformOrigin: "center" }, { scale: 1, duration: 0.25, stagger: 0.09, delay: 0.55 });
         if (dialog) gsap.fromTo(".modal-card", { autoAlpha: 0, y: 20, scale: 0.97 }, { autoAlpha: 1, y: 0, scale: 1, duration: 0.28, ease: "power3.out" });
       }, viewRef);
       return () => context.revert();
