@@ -89,6 +89,25 @@ export function createAppState(repository, todayProvider = () => localDateKey())
       persist();
       return { ok: true, entry: structuredClone(entry) };
     },
+    addMeal(date, items) {
+      if (!Array.isArray(items) || !items.length) return { ok: false, error: "Informe os ingredientes da refeição." };
+      const entries = [];
+      for (const item of items) {
+        const quantity = validateQuantity(item?.quantity);
+        if (!quantity.valid) return { ok: false, error: quantity.error };
+        const food = foods().find(food => food.id === item.foodId);
+        if (!food) return { ok: false, error: "Alimento não encontrado." };
+        entries.push({
+          id: globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`,
+          food: structuredClone(food),
+          quantity: quantity.value,
+          nutrition: scaleNutrition(food, quantity.value),
+        });
+      }
+      state.entriesByDate[date] = [...entriesFor(date), ...entries];
+      persist();
+      return { ok: true, entries: structuredClone(entries) };
+    },
     updateEntry(date, entryId, rawQuantity) {
       const quantity = validateQuantity(rawQuantity);
       if (!quantity.valid) return { ok: false, error: quantity.error };

@@ -2,6 +2,8 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import gsap from "gsap";
+import { BarcodeFood } from "./BarcodeFood";
+import { RecipeOptions } from "./RecipeOptions";
 import { createAppState } from "../dist/js/state/app-state.js";
 import { createRepository } from "../dist/js/storage/repository.js";
 
@@ -12,12 +14,34 @@ const format = (value: number, digits = 0) => new Intl.NumberFormat("pt-BR", { m
 const progress = (value: number, goal: number) => goal ? Math.min(100, Math.max(0, (value / goal) * 100)) : 0;
 const normalize = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
+function AnimatedValue({ value }: { value: number }) {
+  const element = useRef<HTMLSpanElement>(null);
+  const current = useRef({ value: 0 });
+  useEffect(() => {
+    const mm = gsap.matchMedia();
+    const render = () => {
+      if (element.current) element.current.textContent = format(current.current.value, value < 10 ? 1 : 0);
+    };
+    mm.add("(prefers-reduced-motion: reduce)", () => { current.current.value = value; render(); });
+    mm.add("(prefers-reduced-motion: no-preference)", () => {
+      const tween = gsap.to(current.current, { value, duration: 0.7, ease: "power2.out", onUpdate: render, onComplete: render });
+      return () => { tween.kill(); };
+    });
+    return () => {
+      const displayed = current.current.value;
+      mm.revert();
+      current.current.value = displayed;
+    };
+  }, [value]);
+  return <><span ref={element} className="animated-value" aria-hidden="true">{format(value, value < 10 ? 1 : 0)}</span><span className="sr-only">{format(value, value < 10 ? 1 : 0)}</span></>;
+}
+
 function Meter({ label, value, goal, unit, primary = false }: any) {
   const width = progress(value, goal);
   return (
     <article className={`stat-card reveal-card${primary ? " primary" : ""}`}>
       <span className="label">{label}</span>
-      <strong><span className="animated-value">{format(value, value < 10 ? 1 : 0)}</span> <small>{unit}</small></strong>
+      <strong><AnimatedValue value={value} /> <small>{unit}</small></strong>
       <div className="meter" role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={goal} aria-valuenow={Math.round(value)}>
         <span className="meter-fill" style={{ width: `${width}%` }} />
       </div>
@@ -57,6 +81,7 @@ export function MassaDiariaApp() {
   const [search, setSearch] = useState("");
   const [foodId, setFoodId] = useState("");
   const [quantity, setQuantity] = useState("");
+  const [mealQuantities, setMealQuantities] = useState<Record<string, string>>({});
   const [dialog, setDialog] = useState<Dialog>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -100,6 +125,21 @@ export function MassaDiariaApp() {
     return () => mm.revert();
   }, [view, dialog, snapshot?.selectedDate]);
 
+  useEffect(() => {
+    if (!viewRef.current || !revision) return;
+    const mm = gsap.matchMedia();
+    mm.add("(prefers-reduced-motion: no-preference)", () => {
+      const context = gsap.context(() => {
+        const entries = gsap.utils.toArray(".entry");
+        const toast = gsap.utils.toArray(".toast");
+        if (entries.length) gsap.fromTo(entries, { x: 8 }, { x: 0, duration: 0.25, stagger: 0.03, clearProps: "transform" });
+        if (toast.length) gsap.fromTo(toast, { y: 12, opacity: 0 }, { y: 0, opacity: 1, duration: 0.25, clearProps: "transform,opacity" });
+      }, viewRef);
+      return () => context.revert();
+    });
+    return () => mm.revert();
+  }, [revision]);
+
   const refresh = (notice = "") => {
     setRevision((value) => value + 1);
     setMessage(notice);
@@ -115,11 +155,14 @@ export function MassaDiariaApp() {
 
   const submitFood = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const result = engine.addEntry(snapshot.selectedDate, selectedFood?.id, quantity);
+    const result = selectedFood?.mealParts
+      ? engine.addMeal(snapshot.selectedDate, selectedFood.mealParts.map((part: any) => ({ foodId: part.foodId, quantity: mealQuantities[part.foodId] ?? String(part.quantity) })))
+      : engine.addEntry(snapshot.selectedDate, selectedFood?.id, quantity);
     if (!result.ok) return setError(result.error);
     setSearch("");
     setQuantity("");
-    refresh(`${result.entry.food.name} adicionado ao diário.`);
+    setMealQuantities({});
+    refresh(`${selectedFood.name} adicionado ao diário.`);
   };
 
   const removeEntry = (entryId: string) => {
@@ -174,13 +217,36 @@ export function MassaDiariaApp() {
               <Meter label="Carboidratos" value={daily.nutrition.carbs} goal={profile.carbsGoal} unit="g" />
               <Meter label="Gorduras" value={daily.nutrition.fat} goal={profile.fatGoal} unit="g" />
             </section>
+            <RecipeOptions foods={snapshot.foods} onSelect={food => {
+              setSearch(food.name); setFoodId(food.id); setQuantity(String(food.baseAmount)); setError("");
+              window.requestAnimationFrame(() => {
+                const input = document.getElementById("food-quantity");
+                input?.focus({ preventScroll: true });
+                input?.scrollIntoView({ block: "center", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
+              });
+            }} />
             <section className="content-grid">
               <article className="panel reveal-card">
-                <div className="panel-header"><h2>Adicionar alimento</h2><p>Escolha manualmente e ajuste a quantidade.</p></div>
+                <div className="panel-header"><h2>Adicionar alimento</h2><p>Busque no catálogo ou consulte o código de barras.</p></div>
+                <BarcodeFood onManual={() => { setError(""); setDialog("food"); }} onSave={food => {
+                  const result = engine.addCustomFood(food);
+                  if (!result.ok) return result.error;
+                  setSearch(result.food.name);
+                  setFoodId(result.food.id);
+                  setQuantity(String(result.food.baseAmount));
+                  refresh("Alimento salvo. Informe a quantidade consumida e adicione ao diário.");
+                  return null;
+                }} />
                 <form className="food-form" onSubmit={submitFood}>
                   <label className="field">Buscar alimento<input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Ex.: banana, leite, aveia" /></label>
-                  <label className="field">Alimento<select value={selectedFood?.id ?? ""} onChange={(event) => { const food = filteredFoods.find((item: any) => item.id === event.target.value); setFoodId(event.target.value); setQuantity(String(food?.baseAmount ?? "")); }} disabled={!filteredFoods.length}>{filteredFoods.map((food: any) => <option key={food.id} value={food.id}>{food.name} — {food.baseAmount} {food.unit}</option>)}</select><small>{filteredFoods.length ? "Valores médios; confira o rótulo da sua marca." : "Nenhum alimento encontrado."}</small></label>
-                  <div className="form-row"><label className="field">Quantidade<span className="quantity-wrap"><input inputMode="decimal" value={quantity} onChange={(event) => setQuantity(event.target.value)} /><span className="quantity-unit">{selectedFood?.unit}</span></span></label><button className="btn btn-primary" disabled={!selectedFood}>+ Adicionar</button></div>
+                  <label className="field">Alimento<select value={selectedFood?.id ?? ""} onChange={(event) => { const food = filteredFoods.find((item: any) => item.id === event.target.value); setFoodId(event.target.value); setQuantity(String(food?.baseAmount ?? "")); }} disabled={!filteredFoods.length}>{filteredFoods.map((food: any) => <option key={food.id} value={food.id}>{food.name} — {food.mealParts ? "gramas por ingrediente" : `${food.baseAmount} ${food.unit}`}</option>)}</select><small>{filteredFoods.length ? (selectedFood?.description ?? "Valores médios; confira o rótulo da sua marca.") : "Nenhum alimento encontrado."}</small></label>
+                  {selectedFood?.mealParts ? <div className="compact-form">
+                    {selectedFood.mealParts.map((part: any) => {
+                      const ingredient = snapshot.foods.find((food: any) => food.id === part.foodId);
+                      return <label className="field" key={part.foodId}>{ingredient.name} (g)<input inputMode="decimal" required value={mealQuantities[part.foodId] ?? String(part.quantity)} onChange={event => setMealQuantities({ ...mealQuantities, [part.foodId]: event.target.value })} /></label>;
+                    })}
+                    <button className="btn btn-primary">+ Adicionar refeição</button>
+                  </div> : <div className="form-row"><label className="field">Quantidade<span className="quantity-wrap"><input id="food-quantity" inputMode="decimal" value={quantity} onChange={(event) => setQuantity(event.target.value)} /><span className="quantity-unit">{selectedFood?.unit}</span></span></label><button className="btn btn-primary" disabled={!selectedFood}>+ Adicionar</button></div>}
                   <p className="error" role="alert">{error}</p>
                 </form>
               </article>
