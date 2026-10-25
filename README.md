@@ -11,6 +11,9 @@ Aplicativo web pessoal para registrar alimentos, somar calorias e macronutriente
 - registro de peso, médias semanais e indicação do ritmo de evolução;
 - metas editáveis e cadastro de alimentos personalizados;
 - dados mantidos apenas no navegador, sem conta ou servidor.
+- sugestões de porção para completar calorias e proteína, com filtros de alergênicos;
+- origem e marca dos alimentos, quando disponíveis;
+- instalação como PWA e acesso offline ao diário após a primeira visita.
 
 ## Executar localmente
 
@@ -42,6 +45,14 @@ Os valores nutricionais e as metas são estimativas. Este aplicativo não substi
 Em **Hoje → Buscar por código de barras**, digite um EAN-8, UPC-A, EAN-13 ou GTIN-14 e consulte o produto. **Usar câmera** lê EAN-8, EAN-13 e UPC-A em navegadores com `BarcodeDetector`, em HTTPS (ou localhost) e com permissão de câmera. Em navegadores sem suporte, use a digitação.
 
 A consulta pública usa o [Open Food Facts](https://world.openfoodfacts.org/) (base colaborativa, ODbL). Confira os nutrientes no rótulo, complete campos ausentes e confirme se a base é **100 g ou 100 ml**. Salve o alimento, informe a quantidade consumida e adicione ao diário. Produtos não encontrados podem ser cadastrados manualmente. Não é necessária chave de API: somente o código é enviado à base externa; o histórico continua no navegador. A rede precisa permitir `world.openfoodfacts.org`.
+
+Quando disponíveis, marca, origem e alergênicos retornados pela base também são mantidos. A informação de alergênicos pode estar incompleta e não cobre contaminação cruzada; confira sempre o rótulo.
+
+## Sugestões e uso offline
+
+Na tela **Hoje**, o app calcula o que falta para as metas de calorias e proteína e apresenta até três opções com porção ajustável. Selecionar uma sugestão apenas preenche o formulário para revisão. Em **Perfil**, é possível excluir alergênicos e escolher entre alimentos, receitas ou ambos.
+
+O manifesto e o service worker permitem instalar o Massa Diária em navegadores compatíveis. Depois da primeira visita online, a interface e o histórico local continuam disponíveis sem conexão. A busca no Open Food Facts permanece dependente da internet.
 
 Os testes do adaptador estão incluídos em `npm test`. O teste de navegador usa respostas controladas da API e requer Playwright e Chromium disponíveis fora ou dentro do projeto:
 

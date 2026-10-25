@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { lookupBarcode } from "../lib/barcode.js";
 
-type Food = { name: string; baseAmount: number; unit: string; calories: number | string; protein: number | string; carbs: number | string; fat: number | string; barcode: string };
+type Food = { name: string; brand?: string; baseAmount: number; unit: string; calories: number | string; protein: number | string; carbs: number | string; fat: number | string; barcode: string; allergens?: string[]; source?: { type: string; label: string; url?: string }; reviewedAt?: string };
 type Props = { onSave: (food: Food) => string | null; onManual: () => void };
 type Detector = { detect: (video: HTMLVideoElement) => Promise<{ rawValue: string }[]> };
 type DetectorConstructor = { new (options: { formats: string[] }): Detector; getSupportedFormats: () => Promise<string[]> };
@@ -106,9 +106,10 @@ function BarcodeLookup({ onSave, onManual }: Props) {
       <h3>Confira o produto</h3>
       <p>Valores por <strong>100 g ou 100 ml</strong>, conforme o rótulo. Confirme a unidade e complete os campos vazios. Dados ausentes não significam zero.</p>
       <label className="field">Nome do produto<input value={food.name} onChange={event => setFood({ ...food, name: event.target.value })} required /></label>
+      <label className="field">Marca<input value={food.brand ?? ""} onChange={event => setFood({ ...food, brand: event.target.value })} /></label>
       <label className="field">Unidade dos valores consultados<select value={food.unit} onChange={event => setFood({ ...food, unit: event.target.value })} required><option value="">Confirme no rótulo</option><option value="g">Por 100 gramas</option><option value="ml">Por 100 mililitros</option></select></label>
       <div className="macro-fields">{([["calories", "Calorias (kcal)"], ["protein", "Proteínas (g)"], ["carbs", "Carboidratos (g)"], ["fat", "Gorduras (g)"]] as const).map(([key, label]) => <label className="field" key={key}>{label}<input type="number" min="0" max={key === "calories" ? 10000 : 1000} step="any" required value={food[key]} onChange={event => setFood({ ...food, [key]: event.target.value })} /></label>)}</div>
-      <p><a href={`https://world.openfoodfacts.org/product/${food.barcode}`} target="_blank" rel="noreferrer">Fonte: Open Food Facts</a> · Base colaborativa, licença ODbL.</p>
+      <p><a href={`https://world.openfoodfacts.org/product/${food.barcode}`} target="_blank" rel="noreferrer">Fonte: Open Food Facts</a> · Base colaborativa, licença ODbL.{food.allergens?.length ? ` Alergênicos informados: ${food.allergens.join(", ")}.` : " Alergênicos não informados na consulta."}</p>
       <button className="btn btn-primary">Salvar e selecionar alimento</button>
       <small>Depois, informe a quantidade consumida e toque em Adicionar.</small>
     </form>}

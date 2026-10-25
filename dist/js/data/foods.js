@@ -1,6 +1,6 @@
 /**
  * Valores médios por porção de referência. Podem variar conforme marca e preparo.
- * @typedef {{id:string,name:string,baseAmount:number,unit:"g"|"ml"|"un",calories:number,protein:number,carbs:number,fat:number,custom:boolean,description?:string,energyDense?:boolean,targetCalories?:number,mealParts?:Array<{foodId:string,quantity:number}>,recipe?:Array<{foodId:string,quantity:number,name:string,unit:string}>,preparation?:string}} Food
+ * @typedef {{id:string,name:string,baseAmount:number,unit:"g"|"ml"|"un",calories:number,protein:number,carbs:number,fat:number,custom:boolean,brand?:string,source?:{type:"catalog"|"label"|"open_food_facts"|"estimate",label:string,url?:string},reviewedAt?:string,allergens?:string[],description?:string,energyDense?:boolean,targetCalories?:number,mealParts?:Array<{foodId:string,quantity:number}>,recipe?:Array<{foodId:string,quantity:number,name:string,unit:string}>,preparation?:string}} Food
  */
 
 /** @type {Food[]} */
@@ -45,6 +45,36 @@ export const INITIAL_FOODS = [
   { id: "wafer-chocolate", name: "Biscoito wafer de chocolate", baseAmount: 30, unit: "g", calories: 150, protein: 2, carbs: 20, fat: 7, custom: false },
 ];
 
+const ALLERGENS_BY_FOOD = {
+  "leite-integral": ["leite"],
+  "leite-po-integral": ["leite"],
+  nozes: ["castanhas"],
+  "castanha-caju": ["castanhas"],
+  amendoas: ["castanhas"],
+  tahine: ["gergelim"],
+  "pasta-amendoim": ["amendoim"],
+  "amendoim-triturado": ["amendoim"],
+  "farinha-lactea": ["leite", "gluten"],
+  "leite-semidesnatado": ["leite"],
+  "cafe-com-leite": ["leite"],
+  "iogurte-natural-integral": ["leite"],
+  "trophic-basic": ["leite", "soja"],
+  granola: ["gluten"],
+  aveia: ["gluten"],
+  pao: ["gluten"],
+  "wafer-chocolate": ["gluten", "leite", "soja"],
+  ovo: ["ovo"],
+  "ovo-cozido": ["ovo"],
+  "strogonoff-frango": ["leite"],
+  "strogonoff-frango-arroz": ["leite"],
+};
+
+for (const food of INITIAL_FOODS) {
+  food.source = { type: "estimate", label: "Estimativa do catálogo MassaDiária" };
+  food.reviewedAt = "2026-10-25";
+  food.allergens = [...(ALLERGENS_BY_FOOD[food.id] ?? [])];
+}
+
 // A unidade de cada vitamina é uma receita inteira, não um volume estimado.
 const shakeRecipes = [
   {"id": "shake-600-banana-mel", "name": "Banana, aveia e mel", "targetCalories": 600, "ingredients": [["leite-integral", 300], ["banana", 100], ["aveia", 40], ["pasta-amendoim", 25], ["mel", 10]]},
@@ -71,5 +101,19 @@ for (const recipe of shakeRecipes) {
     return { foodId, quantity, name: ingredient.name, unit: ingredient.unit };
   });
   for (const key of Object.keys(nutrition)) nutrition[key] = Math.round(nutrition[key] * 100) / 100;
-  INITIAL_FOODS.push({ id: recipe.id, name: `Hipercalórico — ${recipe.name}`, baseAmount: 1, unit: 'un', ...nutrition, custom: false, targetCalories: recipe.targetCalories, recipe: ingredients, preparation: recipe.preparation ?? (recipe.water ? 'Bata com 300 ml de água. A receita inteira equivale a 1 porção.' : 'Bata os ingredientes até ficar homogêneo. A receita inteira equivale a 1 porção.') });
+  const allergens = [...new Set(ingredients.flatMap(({ foodId }) => INITIAL_FOODS.find(food => food.id === foodId)?.allergens ?? []))];
+  INITIAL_FOODS.push({
+    id: recipe.id,
+    name: `Hipercalórico — ${recipe.name}`,
+    baseAmount: 1,
+    unit: 'un',
+    ...nutrition,
+    custom: false,
+    targetCalories: recipe.targetCalories,
+    recipe: ingredients,
+    preparation: recipe.preparation ?? (recipe.water ? 'Bata com 300 ml de água. A receita inteira equivale a 1 porção.' : 'Bata os ingredientes até ficar homogêneo. A receita inteira equivale a 1 porção.'),
+    source: { type: "estimate", label: "Receita calculada pelo catálogo MassaDiária" },
+    reviewedAt: "2026-10-25",
+    allergens,
+  });
 }

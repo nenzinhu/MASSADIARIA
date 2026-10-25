@@ -17,13 +17,21 @@ export const DEFAULT_PROFILE = Object.freeze({
   weeklyGainGoal: 0.5,
 });
 
+export const DEFAULT_SUGGESTION_PREFERENCES = Object.freeze({
+  excludedAllergens: [],
+  includeCustomFoods: true,
+  includeEstimates: true,
+  candidateTypes: "all",
+});
+
 export function createDefaultState() {
   return {
-    version: 1,
+    version: 2,
     profile: { ...DEFAULT_PROFILE },
     entriesByDate: {},
     weights: [],
     customFoods: [],
+    suggestionPreferences: structuredClone(DEFAULT_SUGGESTION_PREFERENCES),
   };
 }
 
@@ -185,6 +193,21 @@ export function createAppState(repository, todayProvider = () => localDateKey())
       persist();
       return { ok: true, profile: structuredClone(next) };
     },
+    updateSuggestionPreferences(patch) {
+      const allowedAllergens = ["leite", "amendoim", "castanhas", "gergelim", "gluten", "soja", "ovo"];
+      const excludedAllergens = Array.isArray(patch.excludedAllergens)
+        ? [...new Set(patch.excludedAllergens.filter(value => allowedAllergens.includes(value)))]
+        : [];
+      const candidateTypes = ["all", "foods", "recipes"].includes(patch.candidateTypes) ? patch.candidateTypes : "all";
+      state.suggestionPreferences = {
+        excludedAllergens,
+        includeCustomFoods: patch.includeCustomFoods !== false,
+        includeEstimates: patch.includeEstimates !== false,
+        candidateTypes,
+      };
+      persist();
+      return { ok: true, preferences: structuredClone(state.suggestionPreferences) };
+    },
     addCustomFood(input) {
       const name = String(input.name ?? "").trim();
       if (!name) return { ok: false, error: "Informe o nome do alimento." };
@@ -210,6 +233,14 @@ export function createAppState(repository, todayProvider = () => localDateKey())
         carbs: macros[1],
         fat: macros[2],
         custom: true,
+        brand: String(input.brand ?? "").trim(),
+        source: input.source?.type === "open_food_facts"
+          ? structuredClone(input.source)
+          : { type: "label", label: "Rótulo informado pelo usuário" },
+        reviewedAt: new Date().toISOString().slice(0, 10),
+        allergens: Array.isArray(input.allergens)
+          ? [...new Set(input.allergens.map(String))]
+          : String(input.allergens ?? "").split(",").map(value => value.trim()).filter(Boolean),
       };
       state.customFoods = [...state.customFoods, food];
       persist();

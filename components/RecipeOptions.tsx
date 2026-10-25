@@ -26,6 +26,7 @@ export function RecipeOptions({ foods, onSelect }: { foods: Food[]; onSelect: (f
         <h3>{food.name.replace("Hipercalórico — ", "")}</h3>
         <strong>≈ {format(food.calories)} kcal <small>por receita inteira</small></strong>
         <p>P {format(food.protein, 1)} g · C {format(food.carbs, 1)} g · G {format(food.fat, 1)} g</p>
+        <small>{food.allergens?.length ? `Contém: ${food.allergens.join(", ")}` : "Alergênicos não informados"} · {food.source?.label}</small>
         <details><summary>Ingredientes e preparo</summary><ul>{food.recipe!.map(ingredient => <li key={ingredient.foodId}>{format(ingredient.quantity, 1)} {ingredient.unit} de {ingredient.name.toLowerCase()}</li>)}</ul><p>{food.preparation}</p></details>
         <button className="btn btn-secondary" type="button" onClick={() => onSelect(food)}>Selecionar receita</button>
       </article>)}</div>
