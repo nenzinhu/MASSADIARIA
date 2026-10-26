@@ -11,10 +11,15 @@ export function RecipeOptions({ foods, onSelect }: { foods: Food[]; onSelect: (f
   const visible = recipes.filter(food => !target || food.targetCalories === target);
   const denseFoods = foods.filter(food => food.energyDense).sort((a, b) => b.calories / b.baseAmount - a.calories / a.baseAmount);
 
-  return <>
-    <section className="panel shake-panel reveal-card" aria-labelledby="shake-title">
+  return <details className="panel recipe-drawer reveal-card">
+    <summary>
+      <span><strong>Bombas calóricas e receitas</strong><small>{recipes.length} receitas caseiras e {denseFoods.length} alimentos mais calóricos</small></span>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5" /></svg>
+    </summary>
+    <div className="recipe-drawer-content">
+    <section className="shake-panel" aria-labelledby="shake-title">
       <div className="panel-header">
-        <h2 id="shake-title">Bombas hipercalóricas</h2>
+        <h2 id="shake-title">Receitas hipercalóricas</h2>
         <p>{recipes.length} receitas caseiras para variar, incluindo opções próximas de 600, 800, 1.000 e 1.200 kcal. Os valores são estimados pela soma dos ingredientes.</p>
       </div>
       <div className="recipe-filters" role="group" aria-label="Filtrar receitas por calorias">
@@ -32,7 +37,7 @@ export function RecipeOptions({ foods, onSelect }: { foods: Food[]; onSelect: (f
       </article>)}</div>
       <p className="shake-note">Você pode dividir a receita em porções. Confira os rótulos e os ingredientes, especialmente leite, amendoim, castanhas, gergelim e cereais. As estimativas variam com a marca e o preparo.</p>
     </section>
-    <details className="panel calorie-foods">
+    <details className="calorie-foods">
       <summary>Alimentos mais calóricos · {denseFoods.length} opções</summary>
       <p className="recipe-count">Compare a energia por 100 g (ou 100 ml, para líquidos). Selecione um alimento e ajuste a quantidade que consumiu.</p>
       <div className="dense-food-grid">{denseFoods.map(food => <article className="dense-food-card" key={food.id}>
@@ -42,5 +47,6 @@ export function RecipeOptions({ foods, onSelect }: { foods: Food[]; onSelect: (f
         <button type="button" className="btn btn-secondary" onClick={() => onSelect(food)}>Selecionar {food.name.toLowerCase()}</button>
       </article>)}</div>
     </details>
-  </>;
+    </div>
+  </details>;
 }
