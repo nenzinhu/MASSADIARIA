@@ -63,9 +63,7 @@ input, select, button { caret-color: #4b8f1e; }
 .recipe-drawer { margin-bottom: 1.5rem; overflow: hidden; }
 .recipe-drawer > summary { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1.2rem 1.5rem; cursor: pointer; list-style: none; }
 .recipe-drawer > summary::-webkit-details-marker { display: none; }
-.recipe-drawer > summary span { display: grid; gap: .2rem; }
 .recipe-drawer > summary strong { font-size: 1.1rem; }
-.recipe-drawer > summary small { color: var(--muted); font-size: .84rem; font-weight: 500; }
 .recipe-drawer > summary svg { width: 24px; height: 24px; flex: 0 0 auto; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform .22s ease; }
 .recipe-drawer[open] > summary svg { transform: rotate(180deg); }
 .recipe-drawer[open] > summary { border-bottom: 1px solid var(--line, #dce5eb); }

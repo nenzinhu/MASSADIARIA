@@ -13,7 +13,7 @@ export function RecipeOptions({ foods, onSelect }: { foods: Food[]; onSelect: (f
 
   return <details className="panel recipe-drawer reveal-card">
     <summary>
-      <span><strong>Bombas calóricas e receitas</strong><small>{recipes.length} receitas caseiras e {denseFoods.length} alimentos mais calóricos</small></span>
+      <strong>Bombas calóricas e receitas</strong>
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5" /></svg>
     </summary>
     <div className="recipe-drawer-content">
