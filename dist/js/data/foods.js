@@ -43,6 +43,8 @@ export const INITIAL_FOODS = [
   { id: "aveia", energyDense: true, name: "Aveia em flocos", baseAmount: 100, unit: "g", calories: 389, protein: 16.9, carbs: 66.3, fat: 6.9, custom: false },
   { id: "pao", name: "Pão francês", baseAmount: 1, unit: "un", calories: 135, protein: 4.5, carbs: 28.5, fat: 1.5, custom: false },
   { id: "wafer-chocolate", name: "Biscoito wafer de chocolate", baseAmount: 30, unit: "g", calories: 150, protein: 2, carbs: 20, fat: 7, custom: false },
+  { id: "pao-de-queijo", name: "Pão de queijo", baseAmount: 50, unit: "g", calories: 165, protein: 3.5, carbs: 22, fat: 7, custom: false, description: "Estimativa para uma porção de 50 g. O tamanho e os valores variam por receita e marca." },
+  { id: "adocante", name: "Adoçante de mesa", baseAmount: 1, unit: "un", calories: 0, protein: 0, carbs: 0, fat: 0, custom: false, description: "Uma unidade representa um sachê ou porção indicada no rótulo. Algumas marcas podem informar pequenas quantidades de carboidratos." },
 ];
 
 const ALLERGENS_BY_FOOD = {
@@ -67,6 +69,7 @@ const ALLERGENS_BY_FOOD = {
   "ovo-cozido": ["ovo"],
   "strogonoff-frango": ["leite"],
   "strogonoff-frango-arroz": ["leite"],
+  "pao-de-queijo": ["leite", "ovo"],
 };
 
 for (const food of INITIAL_FOODS) {

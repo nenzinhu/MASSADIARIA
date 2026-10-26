@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { lookupBarcode } from "../lib/barcode.js";
 
-type Food = { name: string; brand?: string; baseAmount: number; unit: string; calories: number | string; protein: number | string; carbs: number | string; fat: number | string; barcode: string; allergens?: string[]; source?: { type: string; label: string; url?: string }; reviewedAt?: string };
+type Food = { name: string; brand?: string; baseAmount: number; unit: string; calories: number | string; protein: number | string; carbs: number | string; fat: number | string; barcode: string; servingLabel?: string; readyToAdd?: boolean; allergens?: string[]; source?: { type: string; label: string; url?: string }; reviewedAt?: string };
 type Props = { onSave: (food: Food) => string | null; onManual: () => void };
 type Detector = { detect: (video: HTMLVideoElement) => Promise<{ rawValue: string }[]> };
 type DetectorConstructor = { new (options: { formats: string[] }): Detector; getSupportedFormats: () => Promise<string[]> };
@@ -37,7 +37,13 @@ function BarcodeLookup({ onSave, onManual }: Props) {
     setBusy(true);
     try {
       const result = await lookupBarcode(value, { signal: controller.signal });
-      if (!controller.signal.aborted) setFood(result);
+      if (!controller.signal.aborted && result.readyToAdd) {
+        const saveError = onSave(result);
+        if (saveError) { setFood(result); setError(saveError); }
+      } else if (!controller.signal.aborted) {
+        setFood(result);
+        setError("A base não informou uma porção completa. Revise os dados do rótulo para adicionar.");
+      }
     } catch (cause) {
       if (!controller.signal.aborted) setError(cause instanceof TypeError || (cause instanceof Error && cause.name === "TimeoutError") ? "Não foi possível conectar à base de alimentos. Tente novamente ou cadastre pelo rótulo." : cause instanceof Error ? cause.message : "Não foi possível consultar o produto.");
     } finally {
@@ -94,24 +100,24 @@ function BarcodeLookup({ onSave, onManual }: Props) {
   }
 
   return <div className="barcode-lookup">
-    <p>Consulte um produto e confira os valores no rótulo antes de salvar.</p>
+    <p>Leia o código para registrar imediatamente a porção indicada no rótulo.</p>
     <form onSubmit={event => { event.preventDefault(); void search(code); }}>
       <label className="field">Código de barras<input inputMode="numeric" autoComplete="off" value={code} onChange={event => { setCode(event.target.value); setFood(null); setError(""); }} placeholder="Números abaixo das barras" required disabled={busy || camera} /></label>
       <div className="barcode-actions"><button className="btn btn-primary" disabled={busy || camera}>{busy ? "Consultando…" : "Consultar produto"}</button><button className="btn btn-secondary" type="button" disabled={busy} onClick={() => { setError(""); setCamera(!camera); }}>{camera ? "Parar câmera" : "Usar câmera"}</button></div>
     </form>
     {camera && <div><video className="barcode-video" ref={video} muted playsInline aria-label="Leitor de código de barras" /><p role="status">Aponte a câmera para as barras. Mantenha o rótulo iluminado e firme.</p></div>}
-    <p role="status" aria-live="polite">{busy ? "Buscando informações nutricionais…" : food ? "Produto encontrado. Revise os campos abaixo." : ""}</p>
+    <p role="status" aria-live="polite">{busy ? "Buscando porção e informações nutricionais…" : food ? "A porção está incompleta. Revise os campos abaixo." : ""}</p>
     {error && <p className="error" role="alert">{error}</p>}
     {food && <form className="barcode-review" onSubmit={save}>
       <h3>Confira o produto</h3>
-      <p>Valores por <strong>100 g ou 100 ml</strong>, conforme o rótulo. Confirme a unidade e complete os campos vazios. Dados ausentes não significam zero.</p>
+      <p>Confirme a porção do rótulo e complete os campos vazios. Dados ausentes não significam zero.</p>
       <label className="field">Nome do produto<input value={food.name} onChange={event => setFood({ ...food, name: event.target.value })} required /></label>
       <label className="field">Marca<input value={food.brand ?? ""} onChange={event => setFood({ ...food, brand: event.target.value })} /></label>
-      <label className="field">Unidade dos valores consultados<select value={food.unit} onChange={event => setFood({ ...food, unit: event.target.value })} required><option value="">Confirme no rótulo</option><option value="g">Por 100 gramas</option><option value="ml">Por 100 mililitros</option></select></label>
+      <div className="form-row"><label className="field">Quantidade da porção<input type="number" min="0.1" step="any" value={food.baseAmount} onChange={event => setFood({ ...food, baseAmount: Number(event.target.value) })} required /></label><label className="field">Unidade<select value={food.unit} onChange={event => setFood({ ...food, unit: event.target.value })} required><option value="">Confirme no rótulo</option><option value="g">gramas</option><option value="ml">mililitros</option><option value="un">unidade</option></select></label></div>
       <div className="macro-fields">{([["calories", "Calorias (kcal)"], ["protein", "Proteínas (g)"], ["carbs", "Carboidratos (g)"], ["fat", "Gorduras (g)"]] as const).map(([key, label]) => <label className="field" key={key}>{label}<input type="number" min="0" max={key === "calories" ? 10000 : 1000} step="any" required value={food[key]} onChange={event => setFood({ ...food, [key]: event.target.value })} /></label>)}</div>
       <p><a href={`https://world.openfoodfacts.org/product/${food.barcode}`} target="_blank" rel="noreferrer">Fonte: Open Food Facts</a> · Base colaborativa, licença ODbL.{food.allergens?.length ? ` Alergênicos informados: ${food.allergens.join(", ")}.` : " Alergênicos não informados na consulta."}</p>
-      <button className="btn btn-primary">Salvar e selecionar alimento</button>
-      <small>Depois, informe a quantidade consumida e toque em Adicionar.</small>
+      <button className="btn btn-primary">Salvar e adicionar esta porção</button>
+      <small>A porção será registrada agora no diário de hoje.</small>
     </form>}
     <button className="btn btn-secondary" type="button" onClick={onManual}>Cadastrar pelo rótulo manualmente</button>
     <small>A consulta envia somente o código à base pública Open Food Facts. Seu diário continua neste navegador.</small>

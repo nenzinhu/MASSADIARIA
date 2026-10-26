@@ -211,6 +211,9 @@ export function createAppState(repository, todayProvider = () => localDateKey())
     addCustomFood(input) {
       const name = String(input.name ?? "").trim();
       if (!name) return { ok: false, error: "Informe o nome do alimento." };
+      const barcode = String(input.barcode ?? "").trim();
+      const existingBarcode = barcode && state.customFoods.find(food => food.barcode === barcode);
+      if (existingBarcode) return { ok: true, food: structuredClone(existingBarcode), existing: true };
       if (foods().some((food) => normalizedName(food.name) === normalizedName(name))) {
         return { ok: false, error: "Já existe um alimento com esse nome." };
       }
@@ -233,6 +236,7 @@ export function createAppState(repository, todayProvider = () => localDateKey())
         carbs: macros[1],
         fat: macros[2],
         custom: true,
+        barcode,
         brand: String(input.brand ?? "").trim(),
         source: input.source?.type === "open_food_facts"
           ? structuredClone(input.source)

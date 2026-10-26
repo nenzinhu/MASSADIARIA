@@ -42,7 +42,7 @@ Os valores nutricionais e as metas são estimativas. Este aplicativo não substi
 
 ## Código de barras
 
-Em **Hoje → Buscar por código de barras**, digite um EAN-8, UPC-A, EAN-13 ou GTIN-14 e consulte o produto. **Usar câmera** lê EAN-8, EAN-13 e UPC-A em navegadores com `BarcodeDetector`, em HTTPS (ou localhost) e com permissão de câmera. Em navegadores sem suporte, use a digitação.
+Em **Hoje → Buscar por código de barras**, digite um EAN-8, UPC-A, EAN-13 ou GTIN-14 e consulte o produto. **Usar câmera** lê EAN-8, EAN-13 e UPC-A em navegadores com `BarcodeDetector`, em HTTPS (ou localhost) e com permissão de câmera. Em navegadores sem suporte, use a digitação. Quando o Open Food Facts fornece a porção e todos os nutrientes, essa porção entra imediatamente no diário; dados incompletos abrem a revisão manual.
 
 A consulta pública usa o [Open Food Facts](https://world.openfoodfacts.org/) (base colaborativa, ODbL). Confira os nutrientes no rótulo, complete campos ausentes e confirme se a base é **100 g ou 100 ml**. Salve o alimento, informe a quantidade consumida e adicione ao diário. Produtos não encontrados podem ser cadastrados manualmente. Não é necessária chave de API: somente o código é enviado à base externa; o histórico continua no navegador. A rede precisa permitir `world.openfoodfacts.org`.
 

@@ -239,10 +239,11 @@ export function MassaDiariaApp() {
                 <BarcodeFood onManual={() => { setError(""); setDialog("food"); }} onSave={food => {
                   const result = engine.addCustomFood(food);
                   if (!result.ok) return result.error;
-                  setSearch(result.food.name);
-                  setFoodId(result.food.id);
-                  setQuantity(String(result.food.baseAmount));
-                  refresh("Alimento salvo. Informe a quantidade consumida e adicione ao diário.");
+                  const entryResult = engine.addEntry(snapshot.selectedDate, result.food.id, result.food.baseAmount);
+                  if (!entryResult.ok) return entryResult.error;
+                  setSearch("");
+                  setQuantity("");
+                  refresh(`${result.food.name} adicionado: ${format(entryResult.entry.nutrition.calories)} kcal · P ${format(entryResult.entry.nutrition.protein, 1)} g · C ${format(entryResult.entry.nutrition.carbs, 1)} g · G ${format(entryResult.entry.nutrition.fat, 1)} g.`);
                   return null;
                 }} />
                 <form className="food-form" onSubmit={submitFood}>
