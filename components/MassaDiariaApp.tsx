@@ -2,8 +2,13 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import gsap from "gsap";
+import { BarcodeFood } from "./BarcodeFood";
+import { RecipeOptions } from "./RecipeOptions";
+import { SuggestionPanel } from "./SuggestionPanel";
+import { SupplementOptions } from "./SupplementOptions";
 import { createAppState } from "../dist/js/state/app-state.js";
 import { createRepository } from "../dist/js/storage/repository.js";
+import { ALLERGEN_OPTIONS, allergenLabel, foodSourceLabel, nutritionConsistencyWarning } from "../dist/js/domain/food-quality.js";
 
 type View = "today" | "history" | "profile";
 type Dialog = "food" | "clear" | null;
@@ -12,12 +17,34 @@ const format = (value: number, digits = 0) => new Intl.NumberFormat("pt-BR", { m
 const progress = (value: number, goal: number) => goal ? Math.min(100, Math.max(0, (value / goal) * 100)) : 0;
 const normalize = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
+function AnimatedValue({ value }: { value: number }) {
+  const element = useRef<HTMLSpanElement>(null);
+  const current = useRef({ value: 0 });
+  useEffect(() => {
+    const mm = gsap.matchMedia();
+    const render = () => {
+      if (element.current) element.current.textContent = format(current.current.value, value < 10 ? 1 : 0);
+    };
+    mm.add("(prefers-reduced-motion: reduce)", () => { current.current.value = value; render(); });
+    mm.add("(prefers-reduced-motion: no-preference)", () => {
+      const tween = gsap.to(current.current, { value, duration: 0.7, ease: "power2.out", onUpdate: render, onComplete: render });
+      return () => { tween.kill(); };
+    });
+    return () => {
+      const displayed = current.current.value;
+      mm.revert();
+      current.current.value = displayed;
+    };
+  }, [value]);
+  return <><span ref={element} className="animated-value" aria-hidden="true">{format(value, value < 10 ? 1 : 0)}</span><span className="sr-only">{format(value, value < 10 ? 1 : 0)}</span></>;
+}
+
 function Meter({ label, value, goal, unit, primary = false }: any) {
   const width = progress(value, goal);
   return (
     <article className={`stat-card reveal-card${primary ? " primary" : ""}`}>
       <span className="label">{label}</span>
-      <strong><span className="animated-value">{format(value, value < 10 ? 1 : 0)}</span> <small>{unit}</small></strong>
+      <strong><AnimatedValue value={value} /> <small>{unit}</small></strong>
       <div className="meter" role="progressbar" aria-label={label} aria-valuemin={0} aria-valuemax={goal} aria-valuenow={Math.round(value)}>
         <span className="meter-fill" style={{ width: `${width}%` }} />
       </div>
@@ -57,6 +84,7 @@ export function MassaDiariaApp() {
   const [search, setSearch] = useState("");
   const [foodId, setFoodId] = useState("");
   const [quantity, setQuantity] = useState("");
+  const [mealQuantities, setMealQuantities] = useState<Record<string, string>>({});
   const [dialog, setDialog] = useState<Dialog>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -100,6 +128,21 @@ export function MassaDiariaApp() {
     return () => mm.revert();
   }, [view, dialog, snapshot?.selectedDate]);
 
+  useEffect(() => {
+    if (!viewRef.current || !revision) return;
+    const mm = gsap.matchMedia();
+    mm.add("(prefers-reduced-motion: no-preference)", () => {
+      const context = gsap.context(() => {
+        const entries = gsap.utils.toArray(".entry");
+        const toast = gsap.utils.toArray(".toast");
+        if (entries.length) gsap.fromTo(entries, { x: 8 }, { x: 0, duration: 0.25, stagger: 0.03, clearProps: "transform" });
+        if (toast.length) gsap.fromTo(toast, { y: 12, opacity: 0 }, { y: 0, opacity: 1, duration: 0.25, clearProps: "transform,opacity" });
+      }, viewRef);
+      return () => context.revert();
+    });
+    return () => mm.revert();
+  }, [revision]);
+
   const refresh = (notice = "") => {
     setRevision((value) => value + 1);
     setMessage(notice);
@@ -115,11 +158,14 @@ export function MassaDiariaApp() {
 
   const submitFood = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const result = engine.addEntry(snapshot.selectedDate, selectedFood?.id, quantity);
+    const result = selectedFood?.mealParts
+      ? engine.addMeal(snapshot.selectedDate, selectedFood.mealParts.map((part: any) => ({ foodId: part.foodId, quantity: mealQuantities[part.foodId] ?? String(part.quantity) })))
+      : engine.addEntry(snapshot.selectedDate, selectedFood?.id, quantity);
     if (!result.ok) return setError(result.error);
     setSearch("");
     setQuantity("");
-    refresh(`${result.entry.food.name} adicionado ao diário.`);
+    setMealQuantities({});
+    refresh(`${selectedFood.name} adicionado ao diário.`);
   };
 
   const removeEntry = (entryId: string) => {
@@ -136,6 +182,18 @@ export function MassaDiariaApp() {
     engine.restoreEntry(undo.date, undo.entry);
     setUndo(null);
     refresh("Registro restaurado.");
+  };
+
+  const selectFoodForReview = (food: any, amount = food.baseAmount) => {
+    setSearch(food.name);
+    setFoodId(food.id);
+    setQuantity(String(amount));
+    setError("");
+    window.requestAnimationFrame(() => {
+      const input = document.getElementById("food-quantity");
+      input?.focus({ preventScroll: true });
+      input?.scrollIntoView({ block: "center", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
+    });
   };
 
   if (!snapshot) return <main className="loading-shell" aria-busy="true"><div className="loading-mark">M</div><p>Preparando seu diário…</p></main>;
@@ -174,13 +232,33 @@ export function MassaDiariaApp() {
               <Meter label="Carboidratos" value={daily.nutrition.carbs} goal={profile.carbsGoal} unit="g" />
               <Meter label="Gorduras" value={daily.nutrition.fat} goal={profile.fatGoal} unit="g" />
             </section>
+            <SuggestionPanel foods={snapshot.foods} current={daily.nutrition} profile={profile} preferences={snapshot.suggestionPreferences} onSelect={selectFoodForReview} />
+            <RecipeOptions foods={snapshot.foods} onSelect={selectFoodForReview} />
+            <SupplementOptions foods={snapshot.foods} onSelect={selectFoodForReview} />
             <section className="content-grid">
               <article className="panel reveal-card">
-                <div className="panel-header"><h2>Adicionar alimento</h2><p>Escolha manualmente e ajuste a quantidade.</p></div>
+                <div className="panel-header"><h2>Adicionar alimento</h2><p>Busque no catálogo ou consulte o código de barras.</p></div>
+                <BarcodeFood onManual={() => { setError(""); setDialog("food"); }} onSave={food => {
+                  const result = engine.addCustomFood(food);
+                  if (!result.ok) return result.error;
+                  const entryResult = engine.addEntry(snapshot.selectedDate, result.food.id, result.food.baseAmount);
+                  if (!entryResult.ok) return entryResult.error;
+                  setSearch("");
+                  setQuantity("");
+                  refresh(`${result.food.name} adicionado: ${format(entryResult.entry.nutrition.calories)} kcal · P ${format(entryResult.entry.nutrition.protein, 1)} g · C ${format(entryResult.entry.nutrition.carbs, 1)} g · G ${format(entryResult.entry.nutrition.fat, 1)} g.`);
+                  return null;
+                }} />
                 <form className="food-form" onSubmit={submitFood}>
                   <label className="field">Buscar alimento<input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Ex.: banana, leite, aveia" /></label>
-                  <label className="field">Alimento<select value={selectedFood?.id ?? ""} onChange={(event) => { const food = filteredFoods.find((item: any) => item.id === event.target.value); setFoodId(event.target.value); setQuantity(String(food?.baseAmount ?? "")); }} disabled={!filteredFoods.length}>{filteredFoods.map((food: any) => <option key={food.id} value={food.id}>{food.name} — {food.baseAmount} {food.unit}</option>)}</select><small>{filteredFoods.length ? "Valores médios; confira o rótulo da sua marca." : "Nenhum alimento encontrado."}</small></label>
-                  <div className="form-row"><label className="field">Quantidade<span className="quantity-wrap"><input inputMode="decimal" value={quantity} onChange={(event) => setQuantity(event.target.value)} /><span className="quantity-unit">{selectedFood?.unit}</span></span></label><button className="btn btn-primary" disabled={!selectedFood}>+ Adicionar</button></div>
+                  <label className="field">Alimento<select value={selectedFood?.id ?? ""} onChange={(event) => { const food = filteredFoods.find((item: any) => item.id === event.target.value); setFoodId(event.target.value); setQuantity(String(food?.baseAmount ?? "")); }} disabled={!filteredFoods.length}>{filteredFoods.map((food: any) => <option key={food.id} value={food.id}>{food.name} — {food.mealParts ? "gramas por ingrediente" : `${food.baseAmount} ${food.unit}`}</option>)}</select><small>{filteredFoods.length ? (selectedFood?.description ?? "Valores médios; confira o rótulo da sua marca.") : "Nenhum alimento encontrado."}</small></label>
+                  {selectedFood && <div className="food-provenance"><span>Origem: {foodSourceLabel(selectedFood)}</span>{selectedFood.brand && <span>Marca: {selectedFood.brand}</span>}<span>{selectedFood.allergens?.length ? `Contém: ${selectedFood.allergens.map(allergenLabel).join(", ")}` : "Alergênicos não informados"}</span></div>}
+                  {selectedFood?.mealParts ? <div className="compact-form">
+                    {selectedFood.mealParts.map((part: any) => {
+                      const ingredient = snapshot.foods.find((food: any) => food.id === part.foodId);
+                      return <label className="field" key={part.foodId}>{ingredient.name} (g)<input inputMode="decimal" required value={mealQuantities[part.foodId] ?? String(part.quantity)} onChange={event => setMealQuantities({ ...mealQuantities, [part.foodId]: event.target.value })} /></label>;
+                    })}
+                    <button className="btn btn-primary">+ Adicionar refeição</button>
+                  </div> : <div className="form-row"><label className="field">Quantidade<span className="quantity-wrap"><input id="food-quantity" inputMode="decimal" value={quantity} onChange={(event) => setQuantity(event.target.value)} /><span className="quantity-unit">{selectedFood?.unit}</span></span></label><button className="btn btn-primary" disabled={!selectedFood}>+ Adicionar</button></div>}
                   <p className="error" role="alert">{error}</p>
                 </form>
               </article>
@@ -209,6 +287,13 @@ export function MassaDiariaApp() {
             <section className="profile-grid">
               <article className="panel reveal-card"><div className="panel-header"><h2>Metas pessoais</h2><p>Valores iniciais para o ganho de aproximadamente 2 kg por mês.</p></div><form className="panel-body profile-form" onSubmit={(event) => { event.preventDefault(); const result = engine.updateProfile(Object.fromEntries(new FormData(event.currentTarget))); result.ok ? refresh("Metas atualizadas.") : setError(result.error); }}><div className="form-row"><label className="field">Peso atual (kg)<input name="currentWeight" inputMode="decimal" defaultValue={profile.currentWeight} /></label><label className="field">Meta de peso (kg)<input name="targetWeight" inputMode="decimal" defaultValue={profile.targetWeight} /></label></div><label className="field">Meta de calorias<input name="calorieGoal" type="number" min="500" max="10000" defaultValue={profile.calorieGoal} /></label><div className="macro-fields"><label className="field">Proteínas (g)<input name="proteinGoal" type="number" defaultValue={profile.proteinGoal} /></label><label className="field">Carboidratos (g)<input name="carbsGoal" type="number" defaultValue={profile.carbsGoal} /></label><label className="field">Gorduras (g)<input name="fatGoal" type="number" defaultValue={profile.fatGoal} /></label></div><p className="error">{error}</p><button className="btn btn-primary">Salvar metas</button></form></article>
               <article className="panel reveal-card"><div className="panel-header split-header"><div><h2>Meus alimentos</h2><p>Cadastre os valores do rótulo da sua marca.</p></div><button className="btn btn-secondary" onClick={() => setDialog("food")}>+ Novo</button></div>{snapshot.customFoods.length ? <ul className="custom-foods">{snapshot.customFoods.map((food: any) => <li key={food.id}><div><strong>{food.name}</strong><small>{food.baseAmount} {food.unit} · {format(food.calories)} kcal</small></div><button className="btn btn-danger" onClick={() => { const result = engine.removeCustomFood(food.id); result.ok ? refresh("Alimento removido.") : setError(result.error); }}>Remover</button></li>)}</ul> : <Empty>Você ainda não cadastrou alimentos próprios.</Empty>}</article>
+              <article className="panel reveal-card"><div className="panel-header"><h2>Preferências das sugestões</h2><p>Escolha quais opções podem aparecer para completar suas metas.</p></div><form className="panel-body preference-form" onSubmit={(event) => { event.preventDefault(); const data = new FormData(event.currentTarget); const result = engine.updateSuggestionPreferences({ excludedAllergens: data.getAll("excludedAllergens"), includeCustomFoods: data.has("includeCustomFoods"), includeEstimates: data.has("includeEstimates"), candidateTypes: data.get("candidateTypes") }); result.ok ? refresh("Preferências atualizadas.") : setError(result.error); }}>
+                <fieldset><legend>Não sugerir itens com</legend><div className="check-grid">{ALLERGEN_OPTIONS.map(([id, label]) => <label className="check-control" key={id}><input type="checkbox" name="excludedAllergens" value={id} defaultChecked={snapshot.suggestionPreferences.excludedAllergens.includes(id)} />{label}</label>)}</div></fieldset>
+                <label className="field">Tipos de opção<select name="candidateTypes" defaultValue={snapshot.suggestionPreferences.candidateTypes}><option value="all">Alimentos e receitas</option><option value="foods">Somente alimentos</option><option value="recipes">Somente receitas</option></select></label>
+                <label className="check-control"><input type="checkbox" name="includeCustomFoods" defaultChecked={snapshot.suggestionPreferences.includeCustomFoods} />Incluir meus alimentos</label>
+                <label className="check-control"><input type="checkbox" name="includeEstimates" defaultChecked={snapshot.suggestionPreferences.includeEstimates} />Incluir valores estimados</label>
+                <p className="preference-note">Alergênicos são informativos e podem estar incompletos. Confira sempre o rótulo.</p><button className="btn btn-primary">Salvar preferências</button>
+              </form></article>
               <aside className="panel privacy-card reveal-card"><p className="eyebrow">Privacidade local</p><h2>Seus dados ficam neste navegador</h2><p>Não há conta nem sincronização. Limpar os dados do navegador também pode apagar seu histórico.</p><p>As metas e informações nutricionais são estimativas e não substituem médico ou nutricionista.</p><button className="btn btn-danger" onClick={() => setDialog("clear")}>Apagar todo o histórico</button></aside>
             </section>
           </div>
@@ -219,7 +304,7 @@ export function MassaDiariaApp() {
 
       {(message || undo) && <div className="toast" role="status"><span>{message}</span>{undo && <button onClick={restoreEntry}>Desfazer</button>}</div>}
 
-      {dialog && <div className="modal-layer" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) setDialog(null); }}><section className="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-title">{dialog === "food" ? <form className="dialog-card" onSubmit={(event) => { event.preventDefault(); const result = engine.addCustomFood(Object.fromEntries(new FormData(event.currentTarget))); if (!result.ok) return setError(result.error); setDialog(null); refresh("Alimento cadastrado."); }}><div className="dialog-heading"><div><p className="eyebrow">Novo alimento</p><h2 id="modal-title">Valores do rótulo</h2></div><button className="icon-button" type="button" onClick={() => setDialog(null)} aria-label="Fechar">×</button></div><label className="field">Nome<input name="name" required autoFocus /></label><div className="form-row"><label className="field">Porção<input name="baseAmount" inputMode="decimal" defaultValue="100" /></label><label className="field">Unidade<select name="unit"><option value="g">gramas</option><option value="ml">mililitros</option><option value="un">unidade</option></select></label></div><div className="macro-fields"><label className="field">Calorias<input name="calories" inputMode="decimal" /></label><label className="field">Proteínas<input name="protein" inputMode="decimal" /></label><label className="field">Carboidratos<input name="carbs" inputMode="decimal" /></label><label className="field">Gorduras<input name="fat" inputMode="decimal" /></label></div><p className="error">{error}</p><button className="btn btn-primary">Cadastrar alimento</button></form> : <div className="dialog-card"><p className="eyebrow">Ação permanente</p><h2 id="modal-title">Apagar todo o histórico?</h2><p>Todos os alimentos personalizados, registros, pesos e metas deste navegador serão removidos.</p><div className="dialog-actions"><button className="btn btn-secondary" onClick={() => setDialog(null)}>Cancelar</button><button className="btn btn-danger" onClick={() => { engine.clearAllData(true); setDialog(null); refresh("Histórico apagado."); }}>Sim, apagar tudo</button></div></div>}</section></div>}
+      {dialog && <div className="modal-layer" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) setDialog(null); }}><section className="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-title">{dialog === "food" ? <form className="dialog-card" onSubmit={(event) => { event.preventDefault(); const data = new FormData(event.currentTarget); const input = { ...Object.fromEntries(data), allergens: data.getAll("allergens") }; const result = engine.addCustomFood(input); if (!result.ok) return setError(result.error); const warning = nutritionConsistencyWarning(result.food); setDialog(null); refresh(warning ? `Alimento cadastrado. ${warning}` : "Alimento cadastrado."); }}><div className="dialog-heading"><div><p className="eyebrow">Novo alimento</p><h2 id="modal-title">Valores do rótulo</h2></div><button className="icon-button" type="button" onClick={() => setDialog(null)} aria-label="Fechar">×</button></div><label className="field">Nome<input name="name" required autoFocus /></label><label className="field">Marca (opcional)<input name="brand" /></label><div className="form-row"><label className="field">Porção<input name="baseAmount" inputMode="decimal" defaultValue="100" /></label><label className="field">Unidade<select name="unit"><option value="g">gramas</option><option value="ml">mililitros</option><option value="un">unidade</option></select></label></div><div className="macro-fields"><label className="field">Calorias<input name="calories" inputMode="decimal" required /></label><label className="field">Proteínas<input name="protein" inputMode="decimal" required /></label><label className="field">Carboidratos<input name="carbs" inputMode="decimal" required /></label><label className="field">Gorduras<input name="fat" inputMode="decimal" required /></label></div><fieldset><legend>Alergênicos informados no rótulo</legend><div className="check-grid">{ALLERGEN_OPTIONS.map(([id, label]) => <label className="check-control" key={id}><input type="checkbox" name="allergens" value={id} />{label}</label>)}</div></fieldset><p className="form-note">Origem: rótulo informado por você. Confira os valores antes de salvar.</p><p className="error">{error}</p><button className="btn btn-primary">Cadastrar alimento</button></form> : <div className="dialog-card"><p className="eyebrow">Ação permanente</p><h2 id="modal-title">Apagar todo o histórico?</h2><p>Todos os alimentos personalizados, registros, pesos e metas deste navegador serão removidos.</p><div className="dialog-actions"><button className="btn btn-secondary" onClick={() => setDialog(null)}>Cancelar</button><button className="btn btn-danger" onClick={() => { engine.clearAllData(true); setDialog(null); refresh("Histórico apagado."); }}>Sim, apagar tudo</button></div></div>}</section></div>}
     </div>
   );
 }

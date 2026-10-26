@@ -17,13 +17,21 @@ export const DEFAULT_PROFILE = Object.freeze({
   weeklyGainGoal: 0.5,
 });
 
+export const DEFAULT_SUGGESTION_PREFERENCES = Object.freeze({
+  excludedAllergens: [],
+  includeCustomFoods: true,
+  includeEstimates: true,
+  candidateTypes: "all",
+});
+
 export function createDefaultState() {
   return {
-    version: 1,
+    version: 2,
     profile: { ...DEFAULT_PROFILE },
     entriesByDate: {},
     weights: [],
     customFoods: [],
+    suggestionPreferences: structuredClone(DEFAULT_SUGGESTION_PREFERENCES),
   };
 }
 
@@ -88,6 +96,25 @@ export function createAppState(repository, todayProvider = () => localDateKey())
       state.entriesByDate[date] = [...entriesFor(date), entry];
       persist();
       return { ok: true, entry: structuredClone(entry) };
+    },
+    addMeal(date, items) {
+      if (!Array.isArray(items) || !items.length) return { ok: false, error: "Informe os ingredientes da refeição." };
+      const entries = [];
+      for (const item of items) {
+        const quantity = validateQuantity(item?.quantity);
+        if (!quantity.valid) return { ok: false, error: quantity.error };
+        const food = foods().find(food => food.id === item.foodId);
+        if (!food) return { ok: false, error: "Alimento não encontrado." };
+        entries.push({
+          id: globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`,
+          food: structuredClone(food),
+          quantity: quantity.value,
+          nutrition: scaleNutrition(food, quantity.value),
+        });
+      }
+      state.entriesByDate[date] = [...entriesFor(date), ...entries];
+      persist();
+      return { ok: true, entries: structuredClone(entries) };
     },
     updateEntry(date, entryId, rawQuantity) {
       const quantity = validateQuantity(rawQuantity);
@@ -166,9 +193,27 @@ export function createAppState(repository, todayProvider = () => localDateKey())
       persist();
       return { ok: true, profile: structuredClone(next) };
     },
+    updateSuggestionPreferences(patch) {
+      const allowedAllergens = ["leite", "amendoim", "castanhas", "gergelim", "gluten", "soja", "ovo"];
+      const excludedAllergens = Array.isArray(patch.excludedAllergens)
+        ? [...new Set(patch.excludedAllergens.filter(value => allowedAllergens.includes(value)))]
+        : [];
+      const candidateTypes = ["all", "foods", "recipes"].includes(patch.candidateTypes) ? patch.candidateTypes : "all";
+      state.suggestionPreferences = {
+        excludedAllergens,
+        includeCustomFoods: patch.includeCustomFoods !== false,
+        includeEstimates: patch.includeEstimates !== false,
+        candidateTypes,
+      };
+      persist();
+      return { ok: true, preferences: structuredClone(state.suggestionPreferences) };
+    },
     addCustomFood(input) {
       const name = String(input.name ?? "").trim();
       if (!name) return { ok: false, error: "Informe o nome do alimento." };
+      const barcode = String(input.barcode ?? "").trim();
+      const existingBarcode = barcode && state.customFoods.find(food => food.barcode === barcode);
+      if (existingBarcode) return { ok: true, food: structuredClone(existingBarcode), existing: true };
       if (foods().some((food) => normalizedName(food.name) === normalizedName(name))) {
         return { ok: false, error: "Já existe um alimento com esse nome." };
       }
@@ -191,6 +236,15 @@ export function createAppState(repository, todayProvider = () => localDateKey())
         carbs: macros[1],
         fat: macros[2],
         custom: true,
+        barcode,
+        brand: String(input.brand ?? "").trim(),
+        source: input.source?.type === "open_food_facts"
+          ? structuredClone(input.source)
+          : { type: "label", label: "Rótulo informado pelo usuário" },
+        reviewedAt: new Date().toISOString().slice(0, 10),
+        allergens: Array.isArray(input.allergens)
+          ? [...new Set(input.allergens.map(String))]
+          : String(input.allergens ?? "").split(",").map(value => value.trim()).filter(Boolean),
       };
       state.customFoods = [...state.customFoods, food];
       persist();
