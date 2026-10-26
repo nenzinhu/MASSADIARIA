@@ -5,6 +5,7 @@ import gsap from "gsap";
 import { BarcodeFood } from "./BarcodeFood";
 import { RecipeOptions } from "./RecipeOptions";
 import { SuggestionPanel } from "./SuggestionPanel";
+import { SupplementOptions } from "./SupplementOptions";
 import { createAppState } from "../dist/js/state/app-state.js";
 import { createRepository } from "../dist/js/storage/repository.js";
 import { ALLERGEN_OPTIONS, allergenLabel, foodSourceLabel, nutritionConsistencyWarning } from "../dist/js/domain/food-quality.js";
@@ -233,6 +234,7 @@ export function MassaDiariaApp() {
             </section>
             <SuggestionPanel foods={snapshot.foods} current={daily.nutrition} profile={profile} preferences={snapshot.suggestionPreferences} onSelect={selectFoodForReview} />
             <RecipeOptions foods={snapshot.foods} onSelect={selectFoodForReview} />
+            <SupplementOptions foods={snapshot.foods} onSelect={selectFoodForReview} />
             <section className="content-grid">
               <article className="panel reveal-card">
                 <div className="panel-header"><h2>Adicionar alimento</h2><p>Busque no catálogo ou consulte o código de barras.</p></div>

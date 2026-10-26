@@ -92,6 +92,14 @@ input, select, button { caret-color: #4b8f1e; }
 .dense-food-card h3, .dense-food-card p { margin: 0; }
 .dense-food-card p { font-size: .85rem; color: var(--muted); }
 .dense-food-card .btn { margin-top: auto; white-space: normal; }
+.supplement-content { padding-bottom: 1rem; }
+.supplement-list { display: grid; padding: 0 1.5rem; }
+.supplement-row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 1rem; padding: 1rem 0; border-bottom: 1px solid var(--line, #dce5eb); }
+.supplement-row:last-child { border-bottom: 0; }
+.supplement-row h3, .supplement-row p { margin: 0; }
+.supplement-row p { margin-top: .25rem; color: var(--ink); font-size: .9rem; font-variant-numeric: tabular-nums; }
+.supplement-row small { display: block; max-width: 68ch; margin-top: .35rem; color: var(--muted); line-height: 1.45; }
+.supplement-note { margin: .75rem 1.5rem 0; color: var(--muted); font-size: .84rem; line-height: 1.5; }
 @media (max-width: 900px) { .dense-food-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 560px) { .dense-food-grid { grid-template-columns: 1fr; padding-inline: 1rem; } .recipe-filters { padding-inline: 1rem; } }
 @media (max-width: 640px) {
@@ -102,6 +110,10 @@ input, select, button { caret-color: #4b8f1e; }
   .check-grid { grid-template-columns: 1fr; }
   .pwa-status { align-items: flex-start; }
   .recipe-drawer > summary { padding-inline: 1rem; }
+  .supplement-list { padding-inline: 1rem; }
+  .supplement-row { grid-template-columns: 1fr; }
+  .supplement-row .btn { width: 100%; }
+  .supplement-note { margin-inline: 1rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {

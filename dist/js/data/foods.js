@@ -1,6 +1,6 @@
 /**
  * Valores médios por porção de referência. Podem variar conforme marca e preparo.
- * @typedef {{id:string,name:string,baseAmount:number,unit:"g"|"ml"|"un",calories:number,protein:number,carbs:number,fat:number,custom:boolean,brand?:string,source?:{type:"catalog"|"label"|"open_food_facts"|"estimate",label:string,url?:string},reviewedAt?:string,allergens?:string[],description?:string,energyDense?:boolean,targetCalories?:number,mealParts?:Array<{foodId:string,quantity:number}>,recipe?:Array<{foodId:string,quantity:number,name:string,unit:string}>,preparation?:string}} Food
+ * @typedef {{id:string,name:string,baseAmount:number,unit:"g"|"ml"|"un",calories:number,protein:number,carbs:number,fat:number,custom:boolean,brand?:string,source?:{type:"catalog"|"label"|"open_food_facts"|"estimate",label:string,url?:string},reviewedAt?:string,allergens?:string[],description?:string,energyDense?:boolean,supplement?:boolean,targetCalories?:number,mealParts?:Array<{foodId:string,quantity:number}>,recipe?:Array<{foodId:string,quantity:number,name:string,unit:string}>,preparation?:string}} Food
  */
 
 /** @type {Food[]} */
@@ -45,6 +45,15 @@ export const INITIAL_FOODS = [
   { id: "wafer-chocolate", name: "Biscoito wafer de chocolate", baseAmount: 30, unit: "g", calories: 150, protein: 2, carbs: 20, fat: 7, custom: false },
   { id: "pao-de-queijo", name: "Pão de queijo", baseAmount: 50, unit: "g", calories: 165, protein: 3.5, carbs: 22, fat: 7, custom: false, description: "Estimativa para uma porção de 50 g. O tamanho e os valores variam por receita e marca." },
   { id: "adocante", name: "Adoçante de mesa", baseAmount: 1, unit: "un", calories: 0, protein: 0, carbs: 0, fat: 0, custom: false, description: "Uma unidade representa um sachê ou porção indicada no rótulo. Algumas marcas podem informar pequenas quantidades de carboidratos." },
+  { id: "suplemento-creatina", name: "Creatina monohidratada", baseAmount: 3, unit: "g", calories: 0, protein: 0, carbs: 0, fat: 0, custom: false, supplement: true, description: "Porção de referência de 3 g. Use a quantidade indicada no rótulo ou por profissional." },
+  { id: "suplemento-hipercalorico", name: "Hipercalórico em pó", baseAmount: 120, unit: "g", calories: 450, protein: 20, carbs: 84, fat: 4, custom: false, supplement: true, energyDense: true, description: "Estimativa genérica por 120 g; calorias e macros variam bastante conforme a marca." },
+  { id: "suplemento-feno-grego", name: "Feno-grego em cápsulas", baseAmount: 2, unit: "un", calories: 0, protein: 0, carbs: 0, fat: 0, custom: false, supplement: true, description: "Duas cápsulas como referência. Confira a dose e as orientações no rótulo." },
+  { id: "suplemento-albumina", name: "Albumina em pó", baseAmount: 30, unit: "g", calories: 110, protein: 24, carbs: 2, fat: 0.5, custom: false, supplement: true, description: "Estimativa por 30 g. Valores variam conforme a marca e o sabor." },
+  { id: "suplemento-whey", name: "Whey protein concentrado", baseAmount: 30, unit: "g", calories: 120, protein: 23, carbs: 4, fat: 2, custom: false, supplement: true, description: "Estimativa por 30 g. Confira a tabela nutricional da sua marca." },
+  { id: "suplemento-caseina", name: "Caseína em pó", baseAmount: 30, unit: "g", calories: 110, protein: 24, carbs: 3, fat: 1, custom: false, supplement: true, description: "Estimativa por 30 g. Confira a tabela nutricional da sua marca." },
+  { id: "suplemento-maltodextrina", name: "Maltodextrina", baseAmount: 40, unit: "g", calories: 152, protein: 0, carbs: 38, fat: 0, custom: false, supplement: true, description: "Estimativa por 40 g. Ajuste conforme o rótulo e a porção utilizada." },
+  { id: "suplemento-dextrose", name: "Dextrose", baseAmount: 40, unit: "g", calories: 152, protein: 0, carbs: 38, fat: 0, custom: false, supplement: true, description: "Estimativa por 40 g. Ajuste conforme o rótulo e a porção utilizada." },
+  { id: "suplemento-beta-alanina", name: "Beta-alanina", baseAmount: 3, unit: "g", calories: 0, protein: 0, carbs: 0, fat: 0, custom: false, supplement: true, description: "Porção de referência de 3 g. Use a quantidade indicada no rótulo ou por profissional." },
 ];
 
 const ALLERGENS_BY_FOOD = {
@@ -70,11 +79,15 @@ const ALLERGENS_BY_FOOD = {
   "strogonoff-frango": ["leite"],
   "strogonoff-frango-arroz": ["leite"],
   "pao-de-queijo": ["leite", "ovo"],
+  "suplemento-hipercalorico": ["leite", "soja", "gluten"],
+  "suplemento-albumina": ["ovo"],
+  "suplemento-whey": ["leite", "soja"],
+  "suplemento-caseina": ["leite"],
 };
 
 for (const food of INITIAL_FOODS) {
   food.source = { type: "estimate", label: "Estimativa do catálogo MassaDiária" };
-  food.reviewedAt = "2026-10-25";
+  food.reviewedAt = "2026-10-26";
   food.allergens = [...(ALLERGENS_BY_FOOD[food.id] ?? [])];
 }
 
